@@ -1,1 +1,1 @@
-# customer-lifetime-value-analytics
+# Customer-lifetime-value-and-Customer-Churn-analytics
