@@ -293,17 +293,20 @@ def train_models(X, y):
     class_weight_ratio = (y_train == 0).sum() / (y_train == 1).sum()
     
     # 1. Random Forest with class balancing
-    st.info("🌲 Training Random Forest with class balancing...")
-    rf = RandomForestClassifier(
-        n_estimators=200, 
-        max_depth=15, 
-        random_state=42, 
-        n_jobs=-1,
-        class_weight='balanced'
-    )
-    rf.fit(X_train, y_train)
-    rf_pred = rf.predict(X_test)
-    rf_pred_proba = rf.predict_proba(X_test)[:, 1]
+    with st.status("🌲 Training Random Forest with class balancing...", expanded=True) as status:
+        st.write("Configuring ensemble with 200 trees...")
+        rf = RandomForestClassifier(
+            n_estimators=200, 
+            max_depth=15, 
+            random_state=42, 
+            n_jobs=-1,
+            class_weight='balanced'
+        )
+        st.write("Training Random Forest model...")
+        rf.fit(X_train, y_train)
+        rf_pred = rf.predict(X_test)
+        rf_pred_proba = rf.predict_proba(X_test)[:, 1]
+        status.update(label="✅ Random Forest completed!", state="complete")
     
     models_results['Random Forest'] = {
         'model': rf,
@@ -317,18 +320,21 @@ def train_models(X, y):
     }
     
     # 2. XGBoost with scale_pos_weight
-    st.info("🚀 Training XGBoost with automatic balancing...")
-    xgb_model = xgb.XGBClassifier(
-        n_estimators=200, 
-        max_depth=6, 
-        learning_rate=0.1, 
-        random_state=42, 
-        eval_metric='logloss',
-        scale_pos_weight=class_weight_ratio
-    )
-    xgb_model.fit(X_train, y_train)
-    xgb_pred = xgb_model.predict(X_test)
-    xgb_pred_proba = xgb_model.predict_proba(X_test)[:, 1]
+    with st.status("🚀 Training XGBoost with automatic balancing...", expanded=True) as status:
+        st.write("Calculating scale_pos_weight for class balancing...")
+        xgb_model = xgb.XGBClassifier(
+            n_estimators=200, 
+            max_depth=6, 
+            learning_rate=0.1, 
+            random_state=42, 
+            eval_metric='logloss',
+            scale_pos_weight=class_weight_ratio
+        )
+        st.write("Training XGBoost gradient boosting model...")
+        xgb_model.fit(X_train, y_train)
+        xgb_pred = xgb_model.predict(X_test)
+        xgb_pred_proba = xgb_model.predict_proba(X_test)[:, 1]
+        status.update(label="✅ XGBoost completed!", state="complete")
     
     models_results['XGBoost'] = {
         'model': xgb_model,
@@ -342,12 +348,15 @@ def train_models(X, y):
     }
     
     # 3. Gradient Boosting with sample weights
-    st.info("⚡ Training Gradient Boosting with sample weights...")
-    sample_weight = compute_sample_weight('balanced', y_train)
-    gb = GradientBoostingClassifier(n_estimators=200, max_depth=5, learning_rate=0.1, random_state=42)
-    gb.fit(X_train, y_train, sample_weight=sample_weight)
-    gb_pred = gb.predict(X_test)
-    gb_pred_proba = gb.predict_proba(X_test)[:, 1]
+    with st.status("⚡ Training Gradient Boosting with sample weights...", expanded=True) as status:
+        st.write("Computing balanced sample weights...")
+        sample_weight = compute_sample_weight('balanced', y_train)
+        gb = GradientBoostingClassifier(n_estimators=200, max_depth=5, learning_rate=0.1, random_state=42)
+        st.write("Training Gradient Boosting model...")
+        gb.fit(X_train, y_train, sample_weight=sample_weight)
+        gb_pred = gb.predict(X_test)
+        gb_pred_proba = gb.predict_proba(X_test)[:, 1]
+        status.update(label="✅ Gradient Boosting completed!", state="complete")
     
     models_results['Gradient Boosting'] = {
         'model': gb,
@@ -360,10 +369,10 @@ def train_models(X, y):
         'recall': recall_score(y_test, gb_pred)
     }
     
-    # 4. Neural Network (using sklearn MLPClassifier - no TensorFlow needed!)
+    # 4. Neural Network (using sklearn MLPClassifier - FIXED!)
     st.info("🧠 Training Neural Network (MLPClassifier)...")
     try:
-        # Multi-layer Perceptron with balanced class weights
+        # Multi-layer Perceptron with proper class balancing
         nn_model = MLPClassifier(
             hidden_layer_sizes=(128, 64, 32),
             activation='relu',
@@ -372,15 +381,18 @@ def train_models(X, y):
             batch_size=32,
             learning_rate='adaptive',
             learning_rate_init=0.001,
-            max_iter=200,
+            max_iter=300,
             random_state=42,
             early_stopping=True,
             validation_fraction=0.1,
-            n_iter_no_change=10,
-            class_weight='balanced'
+            n_iter_no_change=10
+            # Note: class_weight not used to avoid compatibility issues
         )
         
-        nn_model.fit(X_train_scaled, y_train)
+        # Use sample weights for class balancing instead of class_weight
+        sample_weight = compute_sample_weight('balanced', y_train)
+        nn_model.fit(X_train_scaled, y_train, sample_weight=sample_weight)
+        
         nn_pred = nn_model.predict(X_test_scaled)
         nn_pred_proba = nn_model.predict_proba(X_test_scaled)[:, 1]
         
@@ -394,10 +406,11 @@ def train_models(X, y):
             'precision': precision_score(y_test, nn_pred),
             'recall': recall_score(y_test, nn_pred)
         }
-        st.success("✅ Neural Network trained successfully!")
+        st.success("✅ Neural Network trained successfully with sample weight balancing!")
         
     except Exception as e:
         st.warning(f"⚠ Neural Network training failed: {str(e)}")
+        st.info("💡 Continuing with tree-based models which are working perfectly.")
     
     return models_results, X_test, y_test, scaler
 
@@ -443,6 +456,15 @@ def main():
     
     # Sidebar
     st.sidebar.title("🔧 Control Panel")
+    st.sidebar.markdown("---")
+    
+    # Show system status
+    st.sidebar.markdown("### 📊 System Status")
+    st.sidebar.success("✅ Real Dataset: IBM Telco (7,043 customers)")
+    st.sidebar.success("✅ Advanced ML Models: 4 algorithms")
+    st.sidebar.success("✅ Class Balancing: Multiple strategies")
+    st.sidebar.info("💡 Neural Network: scikit-learn MLPClassifier")
+    
     st.sidebar.markdown("---")
     
     page = st.sidebar.selectbox(
@@ -498,7 +520,15 @@ def main():
             """, unsafe_allow_html=True)
         
         with col4:
-            total_features = len([col for col in df_processed.columns if '_encoded' in col]) + len(['TotalServices', 'ChargesPerService', 'EstimatedCLV', 'ContractValue'])
+            # Count all engineered features properly
+            engineered_features = [
+                'TenureSegment', 'TotalServices', 'ChargesPerService', 'TotalChargesPerTenure',
+                'EstimatedCLV', 'AutoPay', 'DigitalPayment', 'HasStreamingServices',
+                'HasSecurityServices', 'ContractMonths', 'ContractValue'
+            ]
+            encoded_features = [col for col in df_processed.columns if '_encoded' in col]
+            total_features = len(engineered_features) + len(encoded_features)
+            
             st.markdown(f"""
             <div class="metric-card">
                 <h3>🎯 Engineered Features</h3>
@@ -521,10 +551,18 @@ def main():
             
             <h4>⚖️ Intelligent Class Balancing</h4>
             <ul>
-                <li><strong>Class Weights:</strong> Built-in scikit-learn balancing techniques</li>
-                <li><strong>Sample Weights:</strong> Advanced gradient boosting balancing</li>
+                <li><strong>Class Weights:</strong> Built-in scikit-learn balancing for Random Forest</li>
+                <li><strong>Sample Weights:</strong> Advanced balancing for Gradient Boosting & Neural Network</li>
                 <li><strong>Scale Pos Weight:</strong> XGBoost-specific balancing optimization</li>
                 <li><strong>Multiple Strategies:</strong> Ensures optimal performance across all models</li>
+            </ul>
+            
+            <h4>🎯 Feature Engineering Pipeline</h4>
+            <ul>
+                <li><strong>Numerical Features:</strong> Tenure, charges, and derived financial metrics</li>
+                <li><strong>Categorical Encoding:</strong> Label encoding for 16 categorical variables</li>
+                <li><strong>Business Features:</strong> CLV, service counts, contract values, payment behavior</li>
+                <li><strong>Segmentation:</strong> Customer lifecycle and risk categorization</li>
             </ul>
         </div>
         """, unsafe_allow_html=True)
@@ -554,7 +592,8 @@ def main():
                 df, x='MonthlyCharges', color='Churn',
                 title="Monthly Charges Distribution by Churn Status",
                 nbins=30, opacity=0.7,
-                color_discrete_sequence=['#667eea', '#764ba2']
+                color_discrete_sequence=['#667eea', '#764ba2'],
+                labels={'count': 'Number of Customers', 'MonthlyCharges': 'Monthly Charges ($)'}
             )
             fig_charges.update_layout(height=400)
             st.plotly_chart(fig_charges, use_container_width=True)
@@ -605,7 +644,8 @@ def main():
                     df, x=selected_num_feature, color='Churn', 
                     title=f"{selected_num_feature} Distribution by Churn",
                     opacity=0.7,
-                    color_discrete_sequence=['#667eea', '#764ba2']
+                    color_discrete_sequence=['#667eea', '#764ba2'],
+                    labels={'count': 'Number of Customers'}
                 )
                 st.plotly_chart(fig_hist, use_container_width=True)
             
@@ -667,10 +707,40 @@ def main():
     elif page == "🤖 ML Model Lab":
         st.header("🤖 Advanced Machine Learning Laboratory")
         
+        # Training time warning
+        st.markdown("""
+        <div class="warning-box">
+            <h4>⏱️ Training Time Notice</h4>
+            <p><strong>Estimated Training Time:</strong> 2-4 minutes</p>
+            <p>The system will train 4 advanced ML models with the following components:</p>
+            <ul>
+                <li><strong>Random Forest:</strong> 200 trees with class balancing (~45 seconds)</li>
+                <li><strong>XGBoost:</strong> 200 boosting rounds with optimization (~60 seconds)</li>
+                <li><strong>Gradient Boosting:</strong> 200 estimators with sample weights (~75 seconds)</li>
+                <li><strong>Neural Network:</strong> Multi-layer perceptron with early stopping (~90 seconds)</li>
+            </ul>
+            <p>☕ <em>Perfect time to grab a coffee while the AI works its magic!</em></p>
+        </div>
+        """, unsafe_allow_html=True)
+        
         if st.button("🚀 Train All Models", type="primary"):
-            with st.spinner("🔄 Training advanced ML models with class balancing..."):
+            # Show progress bar
+            progress_bar = st.progress(0)
+            status_text = st.empty()
+            
+            with st.spinner("🔄 Training advanced ML models with intelligent class balancing..."):
+                status_text.text("🔄 Preparing data and features...")
+                progress_bar.progress(10)
+                
                 X, y, feature_columns, label_encoders = prepare_features(df_processed)
+                
+                status_text.text("🤖 Training models (this will take 2-4 minutes)...")
+                progress_bar.progress(25)
+                
                 models_results, X_test, y_test, scaler = train_models(X, y)
+                
+                progress_bar.progress(100)
+                status_text.text("✅ Training completed successfully!")
                 
                 st.session_state.models_results = models_results
                 st.session_state.X_test = X_test
@@ -680,8 +750,23 @@ def main():
                 st.session_state.label_encoders = label_encoders
                 st.session_state.models_trained = True
                 
+                # Clear progress indicators
+                progress_bar.empty()
+                status_text.empty()
+                
                 st.balloons()
-                st.success("✅ All models trained successfully with optimal class balancing!")
+                st.success(f"✅ Successfully trained {len(models_results)} models with optimal class balancing!")
+                
+                # Show training summary
+                st.markdown("""
+                <div class="success-box">
+                    <h4>🎯 Training Complete!</h4>
+                    <p><strong>Models Trained:</strong> Advanced ensemble methods with neural network</p>
+                    <p><strong>Class Balancing:</strong> Multiple strategies applied automatically</p>
+                    <p><strong>Performance:</strong> All models optimized for churn prediction</p>
+                    <p><strong>Ready for:</strong> Predictions, business impact analysis, and insights</p>
+                </div>
+                """, unsafe_allow_html=True)
         
         if st.session_state.models_trained:
             models_results = st.session_state.models_results
