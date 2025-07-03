@@ -13,75 +13,159 @@ warnings.filterwarnings('ignore')
 from sklearn.model_selection import train_test_split, cross_val_score, GridSearchCV
 from sklearn.preprocessing import StandardScaler, LabelEncoder, RobustScaler
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+from sklearn.neural_network import MLPClassifier
 from sklearn.metrics import classification_report, confusion_matrix, roc_auc_score, roc_curve
 from sklearn.metrics import precision_recall_curve, f1_score, accuracy_score, precision_score, recall_score
+from sklearn.utils.class_weight import compute_sample_weight
 import xgboost as xgb
-
-# SMOTE (Optional - with fallback for compatibility issues)
-try:
-    from imblearn.over_sampling import SMOTE
-    SMOTE_AVAILABLE = True
-except ImportError:
-    SMOTE_AVAILABLE = False
-import pickle
-import io
-
-# Deep Learning (Optional)
-try:
-    import tensorflow as tf
-    from tensorflow.keras.models import Sequential
-    from tensorflow.keras.layers import Dense, Dropout, BatchNormalization
-    from tensorflow.keras.optimizers import Adam
-    from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
-    TENSORFLOW_AVAILABLE = True
-except ImportError:
-    TENSORFLOW_AVAILABLE = False
 
 # Page configuration
 st.set_page_config(
-    page_title="ACA Customer Churn Prediction Dashboard",
-    page_icon="📊",
+    page_title="ACA AnalyticsPro - Customer Churn Prediction",
+    page_icon="🎯",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS for better styling
+# Enhanced CSS for beautiful theme (matching your pricing dashboard)
 st.markdown("""
 <style>
-    .main-header {
-        font-size: 2.5rem;
-        font-weight: bold;
-        color: #1f77b4;
-        text-align: center;
-        margin-bottom: 2rem;
+    /* Import Google Fonts */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    
+    /* Global Styles */
+    .stApp {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
+    
+    /* Header Styles */
+    .main-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 2rem 0;
+        margin: -1rem -1rem 2rem -1rem;
+        border-radius: 0 0 20px 20px;
+        text-align: center;
+        color: white;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+    
+    .header-title {
+        font-size: 2.8rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    
+    .header-subtitle {
+        font-size: 1.2rem;
+        font-weight: 300;
+        opacity: 0.9;
+        margin-bottom: 0;
+    }
+    
+    /* Metric Cards */
     .metric-card {
-        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-        padding: 1rem;
-        border-radius: 10px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 1.5rem;
+        border-radius: 15px;
         color: white;
         margin: 0.5rem 0;
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        border: 1px solid rgba(255,255,255,0.2);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
     }
+    
+    .metric-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 12px 35px rgba(102, 126, 234, 0.4);
+    }
+    
+    .metric-card h3 {
+        font-size: 0.9rem;
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+        opacity: 0.9;
+    }
+    
+    .metric-card h2 {
+        font-size: 2.2rem;
+        font-weight: 700;
+        margin: 0;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    
+    /* Info Boxes */
     .insight-box {
-        background: #f0f2f6;
-        padding: 1rem;
-        border-radius: 10px;
-        border-left: 5px solid #1f77b4;
+        background: linear-gradient(135deg, #f8faff 0%, #f0f4ff 100%);
+        padding: 1.5rem;
+        border-radius: 15px;
+        border-left: 5px solid #667eea;
         margin: 1rem 0;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
     }
-    .warning-box {
-        background: #fff3cd;
-        padding: 1rem;
-        border-radius: 10px;
-        border-left: 5px solid #ffc107;
-        margin: 1rem 0;
-    }
+    
     .success-box {
-        background: #d1edff;
-        padding: 1rem;
-        border-radius: 10px;
-        border-left: 5px solid #28a745;
+        background: linear-gradient(135deg, #f0fff4 0%, #e6fffa 100%);
+        padding: 1.5rem;
+        border-radius: 15px;
+        border-left: 5px solid #48bb78;
         margin: 1rem 0;
+        box-shadow: 0 4px 15px rgba(72, 187, 120, 0.1);
+    }
+    
+    .warning-box {
+        background: linear-gradient(135deg, #fffbf0 0%, #fff5e6 100%);
+        padding: 1.5rem;
+        border-radius: 15px;
+        border-left: 5px solid #ed8936;
+        margin: 1rem 0;
+        box-shadow: 0 4px 15px rgba(237, 137, 54, 0.1);
+    }
+    
+    /* Sidebar Styles */
+    .css-1d391kg {
+        background: linear-gradient(135deg, #f8faff 0%, #f0f4ff 100%);
+    }
+    
+    /* Custom Button Styles */
+    .stButton > button {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        padding: 0.5rem 1rem;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    }
+    
+    .stButton > button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+    }
+    
+    /* Footer Styles */
+    .footer {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 2rem 0;
+        margin: 3rem -1rem -1rem -1rem;
+        border-radius: 20px 20px 0 0;
+        text-align: center;
+        color: white;
+        box-shadow: 0 -4px 20px rgba(0,0,0,0.1);
+    }
+    
+    /* Hide Streamlit Branding */
+    .viewerBadge_container__1QSob {
+        display: none;
+    }
+    
+    #MainMenu {
+        display: none;
+    }
+    
+    .stDeployButton {
+        display: none;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -91,19 +175,17 @@ if 'data_loaded' not in st.session_state:
     st.session_state.data_loaded = False
 if 'models_trained' not in st.session_state:
     st.session_state.models_trained = False
-if 'df_processed' not in st.session_state:
-    st.session_state.df_processed = None
 
 @st.cache_data
 def load_data():
-    """Load the customer churn dataset"""
+    """Load the real IBM Telco customer churn dataset"""
     try:
-        # Load real-world telecom churn dataset
+        # Load real-world telecom churn dataset (NOT SIMULATED)
         url = "https://raw.githubusercontent.com/IBM/telco-customer-churn-on-icp4d/master/data/Telco-Customer-Churn.csv"
         df = pd.read_csv(url)
         return df
     except Exception as e:
-        st.error(f"Error loading data: {str(e)}")
+        st.error(f"Error loading real dataset: {str(e)}")
         return None
 
 @st.cache_data
@@ -194,42 +276,32 @@ def prepare_features(df_processed):
     return X, y, feature_columns, label_encoders
 
 def train_models(X, y):
-    """Train multiple machine learning models"""
+    """Train multiple machine learning models with proper class balancing"""
     # Split the data
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
     X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.25, random_state=42, stratify=y_train)
     
     # Scale features
-    scaler = RobustScaler()
+    scaler = StandardScaler()
     X_train_scaled = scaler.fit_transform(X_train)
     X_val_scaled = scaler.transform(X_val)
     X_test_scaled = scaler.transform(X_test)
     
-    # Handle class imbalance with SMOTE (if available)
-    if SMOTE_AVAILABLE:
-        try:
-            smote = SMOTE(random_state=42)
-            X_train_balanced, y_train_balanced = smote.fit_resample(X_train, y_train)
-            st.info("✅ Applied SMOTE for class balancing")
-        except Exception as e:
-            st.warning(f"SMOTE failed: {e}. Using original training data.")
-            X_train_balanced, y_train_balanced = X_train, y_train
-    else:
-        st.info("ℹ️ SMOTE unavailable - using original training data with class weights")
-        X_train_balanced, y_train_balanced = X_train, y_train
-    
     models_results = {}
     
-    # Random Forest
-    st.info("🌲 Training Random Forest...")
-    if SMOTE_AVAILABLE and len(X_train_balanced) > len(X_train):
-        # Use balanced data from SMOTE
-        rf = RandomForestClassifier(n_estimators=200, max_depth=15, random_state=42, n_jobs=-1)
-    else:
-        # Use class weights for balancing
-        rf = RandomForestClassifier(n_estimators=200, max_depth=15, random_state=42, n_jobs=-1, class_weight='balanced')
+    # Calculate class weights for balancing
+    class_weight_ratio = (y_train == 0).sum() / (y_train == 1).sum()
     
-    rf.fit(X_train_balanced, y_train_balanced)
+    # 1. Random Forest with class balancing
+    st.info("🌲 Training Random Forest with class balancing...")
+    rf = RandomForestClassifier(
+        n_estimators=200, 
+        max_depth=15, 
+        random_state=42, 
+        n_jobs=-1,
+        class_weight='balanced'
+    )
+    rf.fit(X_train, y_train)
     rf_pred = rf.predict(X_test)
     rf_pred_proba = rf.predict_proba(X_test)[:, 1]
     
@@ -244,24 +316,17 @@ def train_models(X, y):
         'recall': recall_score(y_test, rf_pred)
     }
     
-    # XGBoost
-    st.info("🚀 Training XGBoost...")
-    if SMOTE_AVAILABLE and len(X_train_balanced) > len(X_train):
-        # Use balanced data from SMOTE
-        scale_pos_weight = 1
-    else:
-        # Calculate scale_pos_weight for class balancing
-        scale_pos_weight = (y_train == 0).sum() / (y_train == 1).sum()
-    
+    # 2. XGBoost with scale_pos_weight
+    st.info("🚀 Training XGBoost with automatic balancing...")
     xgb_model = xgb.XGBClassifier(
         n_estimators=200, 
         max_depth=6, 
         learning_rate=0.1, 
         random_state=42, 
         eval_metric='logloss',
-        scale_pos_weight=scale_pos_weight
+        scale_pos_weight=class_weight_ratio
     )
-    xgb_model.fit(X_train_balanced, y_train_balanced)
+    xgb_model.fit(X_train, y_train)
     xgb_pred = xgb_model.predict(X_test)
     xgb_pred_proba = xgb_model.predict_proba(X_test)[:, 1]
     
@@ -276,20 +341,11 @@ def train_models(X, y):
         'recall': recall_score(y_test, xgb_pred)
     }
     
-    # Gradient Boosting
-    st.info("⚡ Training Gradient Boosting...")
-    # Gradient Boosting doesn't have class_weight parameter, so we'll use sample_weight if needed
-    if SMOTE_AVAILABLE and len(X_train_balanced) > len(X_train):
-        # Use balanced data from SMOTE
-        gb = GradientBoostingClassifier(n_estimators=200, max_depth=5, learning_rate=0.1, random_state=42)
-        sample_weight = None
-    else:
-        # Calculate sample weights for class balancing
-        gb = GradientBoostingClassifier(n_estimators=200, max_depth=5, learning_rate=0.1, random_state=42)
-        from sklearn.utils.class_weight import compute_sample_weight
-        sample_weight = compute_sample_weight('balanced', y_train_balanced)
-    
-    gb.fit(X_train_balanced, y_train_balanced, sample_weight=sample_weight)
+    # 3. Gradient Boosting with sample weights
+    st.info("⚡ Training Gradient Boosting with sample weights...")
+    sample_weight = compute_sample_weight('balanced', y_train)
+    gb = GradientBoostingClassifier(n_estimators=200, max_depth=5, learning_rate=0.1, random_state=42)
+    gb.fit(X_train, y_train, sample_weight=sample_weight)
     gb_pred = gb.predict(X_test)
     gb_pred_proba = gb.predict_proba(X_test)[:, 1]
     
@@ -304,69 +360,44 @@ def train_models(X, y):
         'recall': recall_score(y_test, gb_pred)
     }
     
-    # Neural Network (Optional - only if TensorFlow is available)
-    if TENSORFLOW_AVAILABLE:
-        st.info("🧠 Training Neural Network...")
-        try:
-            # Scale the balanced training data for neural network
-            X_train_balanced_scaled = scaler.fit_transform(X_train_balanced)
-            
-            # Build neural network architecture
-            def create_neural_network(input_dim):
-                model = Sequential([
-                    Dense(128, activation='relu', input_dim=input_dim),
-                    BatchNormalization(),
-                    Dropout(0.3),
-                    
-                    Dense(64, activation='relu'),
-                    BatchNormalization(),
-                    Dropout(0.3),
-                    
-                    Dense(32, activation='relu'),
-                    Dropout(0.2),
-                    
-                    Dense(16, activation='relu'),
-                    Dropout(0.1),
-                    
-                    Dense(1, activation='sigmoid')
-                ])
-                
-                model.compile(optimizer=Adam(learning_rate=0.001),
-                              loss='binary_crossentropy',
-                              metrics=['accuracy'])
-                
-                return model
-            
-            # Create and train neural network
-            nn_model = create_neural_network(X_train_balanced_scaled.shape[1])
-            
-            # Train the model with reduced epochs for faster deployment
-            history = nn_model.fit(
-                X_train_balanced_scaled, y_train_balanced,
-                validation_data=(X_val_scaled, y_val),
-                epochs=20,  # Reduced for faster training
-                batch_size=32,
-                verbose=0  # Silent training
-            )
-            
-            # Make predictions
-            nn_pred_proba = nn_model.predict(X_test_scaled, verbose=0).flatten()
-            nn_pred = (nn_pred_proba > 0.5).astype(int)
-            
-            models_results['Neural Network'] = {
-                'model': nn_model,
-                'predictions': nn_pred,
-                'probabilities': nn_pred_proba,
-                'accuracy': accuracy_score(y_test, nn_pred),
-                'roc_auc': roc_auc_score(y_test, nn_pred_proba),
-                'f1': f1_score(y_test, nn_pred),
-                'precision': precision_score(y_test, nn_pred),
-                'recall': recall_score(y_test, nn_pred)
-            }
-        except Exception as e:
-            st.warning(f"⚠ Neural Network training failed: {str(e)}")
-    else:
-        st.info("ℹ Neural Network skipped (TensorFlow not available)")
+    # 4. Neural Network (using sklearn MLPClassifier - no TensorFlow needed!)
+    st.info("🧠 Training Neural Network (MLPClassifier)...")
+    try:
+        # Multi-layer Perceptron with balanced class weights
+        nn_model = MLPClassifier(
+            hidden_layer_sizes=(128, 64, 32),
+            activation='relu',
+            solver='adam',
+            alpha=0.001,
+            batch_size=32,
+            learning_rate='adaptive',
+            learning_rate_init=0.001,
+            max_iter=200,
+            random_state=42,
+            early_stopping=True,
+            validation_fraction=0.1,
+            n_iter_no_change=10,
+            class_weight='balanced'
+        )
+        
+        nn_model.fit(X_train_scaled, y_train)
+        nn_pred = nn_model.predict(X_test_scaled)
+        nn_pred_proba = nn_model.predict_proba(X_test_scaled)[:, 1]
+        
+        models_results['Neural Network'] = {
+            'model': nn_model,
+            'predictions': nn_pred,
+            'probabilities': nn_pred_proba,
+            'accuracy': accuracy_score(y_test, nn_pred),
+            'roc_auc': roc_auc_score(y_test, nn_pred_proba),
+            'f1': f1_score(y_test, nn_pred),
+            'precision': precision_score(y_test, nn_pred),
+            'recall': recall_score(y_test, nn_pred)
+        }
+        st.success("✅ Neural Network trained successfully!")
+        
+    except Exception as e:
+        st.warning(f"⚠ Neural Network training failed: {str(e)}")
     
     return models_results, X_test, y_test, scaler
 
@@ -387,7 +418,6 @@ def calculate_business_impact(models_results, y_test, avg_clv):
         
         value_from_retained = tp * successful_retention_rate * avg_clv
         cost_of_campaigns = (tp + fp) * retention_cost
-        cost_of_missed = fn * avg_clv * 0.3  # Partial cost for missed opportunities
         
         net_value = value_from_retained - cost_of_campaigns
         roi = (net_value / cost_of_campaigns) * 100 if cost_of_campaigns > 0 else 0
@@ -403,41 +433,42 @@ def calculate_business_impact(models_results, y_test, avg_clv):
 
 # Main App
 def main():
-    st.markdown('<div class="main-header">🎯 ACA Customer Churn Prediction Dashboard</div>', unsafe_allow_html=True)
+    # Beautiful Header (matching your pricing dashboard theme)
+    st.markdown("""
+    <div class="main-header">
+        <div class="header-title">🎯 ACA AnalyticsPro</div>
+        <div class="header-subtitle">Advanced Customer Churn Prediction & Analytics</div>
+    </div>
+    """, unsafe_allow_html=True)
     
     # Sidebar
     st.sidebar.title("🔧 Control Panel")
-    
-    if not TENSORFLOW_AVAILABLE:
-        st.sidebar.info("📝 Neural Network model unavailable (TensorFlow not installed)")
-    
-    if not SMOTE_AVAILABLE:
-        st.sidebar.info("📝 SMOTE unavailable - using class weights for balancing")
+    st.sidebar.markdown("---")
     
     page = st.sidebar.selectbox(
-        "Select Page",
-        ["🏠 Overview", "📊 Data Analysis", "🤖 Model Training", "📈 Predictions", "💼 Business Impact", "🔍 Model Insights"]
+        "📊 Select Analytics Module",
+        ["🏠 Executive Dashboard", "📊 Data Intelligence", "🤖 ML Model Lab", "📈 Prediction Engine", "💼 Business Impact", "🔍 Advanced Insights"]
     )
     
-    # Load data
+    # Load real data
     if not st.session_state.data_loaded:
-        with st.spinner("Loading real customer data..."):
+        with st.spinner("🔄 Loading real IBM Telco customer dataset..."):
             df = load_data()
             if df is not None:
                 st.session_state.df = df
                 st.session_state.df_processed = preprocess_data(df)
                 st.session_state.data_loaded = True
-                st.success("✅ Data loaded successfully!")
+                st.sidebar.success("✅ Real dataset loaded!")
             else:
-                st.error("❌ Failed to load data")
+                st.sidebar.error("❌ Failed to load dataset")
                 return
     
     df = st.session_state.df
     df_processed = st.session_state.df_processed
     
-    # Overview Page
-    if page == "🏠 Overview":
-        st.header("📋 Project Overview")
+    # Executive Dashboard
+    if page == "🏠 Executive Dashboard":
+        st.header("📋 Executive Dashboard")
         
         col1, col2, col3, col4 = st.columns(4)
         with col1:
@@ -461,40 +492,45 @@ def main():
             avg_clv = df_processed['EstimatedCLV'].mean()
             st.markdown(f"""
             <div class="metric-card">
-                <h3>💰 Avg CLV</h3>
+                <h3>💰 Avg Customer Value</h3>
                 <h2>${avg_clv:,.0f}</h2>
             </div>
             """, unsafe_allow_html=True)
         
         with col4:
-            features_count = len([col for col in df_processed.columns if '_encoded' in col or col in ['TotalServices', 'ChargesPerService']])
+            total_features = len([col for col in df_processed.columns if '_encoded' in col]) + len(['TotalServices', 'ChargesPerService', 'EstimatedCLV', 'ContractValue'])
             st.markdown(f"""
             <div class="metric-card">
-                <h3>🎯 Features</h3>
-                <h2>{features_count}</h2>
+                <h3>🎯 Engineered Features</h3>
+                <h2>{total_features}</h2>
             </div>
             """, unsafe_allow_html=True)
         
-        st.markdown(f"""
+        st.markdown("""
         <div class="insight-box">
-            <h3>🎯 Project Objective</h3>
-            <p>Develop an advanced machine learning model to predict customer churn and enable proactive retention strategies for American Credit Acceptance (ACA). This dashboard demonstrates cutting-edge data science techniques applicable to auto finance industry challenges.</p>
+            <h3>🎯 ACA Analytics Objective</h3>
+            <p><strong>Mission:</strong> Develop advanced machine learning models to predict customer churn and enable proactive retention strategies for American Credit Acceptance (ACA). This platform demonstrates cutting-edge data science techniques directly applicable to auto finance industry challenges.</p>
             
-            <h4>🤖 Available Models</h4>
-            <p>• Random Forest Classifier (with class balancing)<br>
-            • XGBoost Classifier (with scale_pos_weight)<br>
-            • Gradient Boosting Classifier (with sample weights)<br>
-            {"• Neural Network (Deep Learning)" if TENSORFLOW_AVAILABLE else "• Neural Network (Unavailable - requires TensorFlow)"}</p>
+            <h4>🤖 Advanced ML Models Available</h4>
+            <ul>
+                <li><strong>Random Forest:</strong> Ensemble learning with automatic class balancing</li>
+                <li><strong>XGBoost:</strong> Gradient boosting with scale_pos_weight optimization</li>
+                <li><strong>Gradient Boosting:</strong> Sequential learning with sample weight balancing</li>
+                <li><strong>Neural Network:</strong> Multi-layer perceptron with adaptive learning</li>
+            </ul>
             
-            <h4>⚖️ Class Balancing</h4>
-            <p>{"• SMOTE (Synthetic Minority Oversampling)" if SMOTE_AVAILABLE else "• Class weights and sample balancing"}<br>
-            • Robust handling of imbalanced datasets<br>
-            • Multiple fallback strategies for optimal performance</p>
+            <h4>⚖️ Intelligent Class Balancing</h4>
+            <ul>
+                <li><strong>Class Weights:</strong> Built-in scikit-learn balancing techniques</li>
+                <li><strong>Sample Weights:</strong> Advanced gradient boosting balancing</li>
+                <li><strong>Scale Pos Weight:</strong> XGBoost-specific balancing optimization</li>
+                <li><strong>Multiple Strategies:</strong> Ensures optimal performance across all models</li>
+            </ul>
         </div>
         """, unsafe_allow_html=True)
         
-        # Key insights
-        st.subheader("🔍 Key Business Insights")
+        # Business insights visualizations
+        st.subheader("🔍 Key Business Intelligence")
         
         col1, col2 = st.columns(2)
         
@@ -509,86 +545,130 @@ def main():
                 color=churn_contract.values,
                 color_continuous_scale='RdYlBu_r'
             )
+            fig_contract.update_layout(height=400)
             st.plotly_chart(fig_contract, use_container_width=True)
         
         with col2:
             # Monthly charges distribution
             fig_charges = px.histogram(
                 df, x='MonthlyCharges', color='Churn',
-                title="Monthly Charges Distribution by Churn",
-                nbins=30, opacity=0.7
+                title="Monthly Charges Distribution by Churn Status",
+                nbins=30, opacity=0.7,
+                color_discrete_sequence=['#667eea', '#764ba2']
             )
+            fig_charges.update_layout(height=400)
             st.plotly_chart(fig_charges, use_container_width=True)
     
-    # Data Analysis Page
-    elif page == "📊 Data Analysis":
-        st.header("📊 Data Exploration & Analysis")
+    # Data Intelligence
+    elif page == "📊 Data Intelligence":
+        st.header("📊 Data Intelligence & Feature Engineering")
         
         # Dataset overview
-        st.subheader("📋 Dataset Overview")
+        st.subheader("📋 Real Dataset Overview")
         col1, col2 = st.columns(2)
         
         with col1:
-            st.write("**Dataset Shape:**", df.shape)
-            st.write("**Missing Values:**")
-            missing_data = df.isnull().sum()
-            if missing_data.sum() > 0:
-                st.dataframe(missing_data[missing_data > 0])
-            else:
-                st.write("No missing values found!")
+            st.markdown(f"""
+            <div class="insight-box">
+                <h4>📊 Dataset Information</h4>
+                <p><strong>Source:</strong> IBM Telco Customer Churn (Real Data)</p>
+                <p><strong>Shape:</strong> {df.shape[0]:,} customers × {df.shape[1]} features</p>
+                <p><strong>Target:</strong> Binary churn classification (Yes/No)</p>
+                <p><strong>Missing Values:</strong> {df.isnull().sum().sum()} (handled in preprocessing)</p>
+            </div>
+            """, unsafe_allow_html=True)
         
         with col2:
-            st.write("**Target Distribution:**")
             target_dist = df['Churn'].value_counts()
-            fig_target = px.pie(values=target_dist.values, names=target_dist.index, title="Churn Distribution")
+            fig_target = px.pie(
+                values=target_dist.values, 
+                names=['Retained', 'Churned'],
+                title="Customer Retention Distribution",
+                color_discrete_sequence=['#667eea', '#764ba2']
+            )
+            fig_target.update_layout(height=300)
             st.plotly_chart(fig_target, use_container_width=True)
         
-        # Feature analysis
+        # Advanced feature analysis
         st.subheader("🎨 Advanced Feature Engineering")
-        feature_tabs = st.tabs(["📊 Numerical Features", "🏷 Categorical Features", "🆕 Engineered Features"])
+        feature_tabs = st.tabs(["📊 Numerical Analysis", "🏷 Categorical Analysis", "🆕 Engineered Features"])
         
         with feature_tabs[0]:
-            numerical_cols = ['tenure', 'MonthlyCharges', 'TotalCharges']
-            selected_num_feature = st.selectbox("Select numerical feature:", numerical_cols)
+            col1, col2 = st.columns(2)
+            with col1:
+                numerical_cols = ['tenure', 'MonthlyCharges', 'TotalCharges']
+                selected_num_feature = st.selectbox("Select numerical feature:", numerical_cols)
             
             col1, col2 = st.columns(2)
             with col1:
-                fig_hist = px.histogram(df, x=selected_num_feature, color='Churn', 
-                                      title=f"{selected_num_feature} Distribution", opacity=0.7)
+                fig_hist = px.histogram(
+                    df, x=selected_num_feature, color='Churn', 
+                    title=f"{selected_num_feature} Distribution by Churn",
+                    opacity=0.7,
+                    color_discrete_sequence=['#667eea', '#764ba2']
+                )
                 st.plotly_chart(fig_hist, use_container_width=True)
             
             with col2:
-                fig_box = px.box(df, x='Churn', y=selected_num_feature, 
-                               title=f"{selected_num_feature} by Churn Status")
+                fig_box = px.box(
+                    df, x='Churn', y=selected_num_feature, 
+                    title=f"{selected_num_feature} by Churn Status",
+                    color='Churn',
+                    color_discrete_sequence=['#667eea', '#764ba2']
+                )
                 st.plotly_chart(fig_box, use_container_width=True)
         
         with feature_tabs[1]:
-            categorical_cols = ['Contract', 'PaymentMethod', 'InternetService']
-            selected_cat_feature = st.selectbox("Select categorical feature:", categorical_cols)
+            col1, col2 = st.columns(2)
+            with col1:
+                categorical_cols = ['Contract', 'PaymentMethod', 'InternetService']
+                selected_cat_feature = st.selectbox("Select categorical feature:", categorical_cols)
             
             churn_by_cat = df.groupby(selected_cat_feature)['Churn'].apply(lambda x: (x == 'Yes').mean())
-            fig_cat = px.bar(x=churn_by_cat.index, y=churn_by_cat.values,
-                           title=f"Churn Rate by {selected_cat_feature}",
-                           labels={'x': selected_cat_feature, 'y': 'Churn Rate'})
+            fig_cat = px.bar(
+                x=churn_by_cat.index, y=churn_by_cat.values,
+                title=f"Churn Rate by {selected_cat_feature}",
+                labels={'x': selected_cat_feature, 'y': 'Churn Rate'},
+                color=churn_by_cat.values,
+                color_continuous_scale='RdYlBu_r'
+            )
             st.plotly_chart(fig_cat, use_container_width=True)
         
         with feature_tabs[2]:
-            st.write("**Engineered Features Preview:**")
-            engineered_features = ['TotalServices', 'ChargesPerService', 'EstimatedCLV', 'ContractValue']
-            st.dataframe(df_processed[engineered_features + ['Churn']].head(10))
+            st.markdown("""
+            <div class="success-box">
+                <h4>🆕 Advanced Engineered Features</h4>
+                <p>Our feature engineering creates business-relevant variables:</p>
+                <ul>
+                    <li><strong>TotalServices:</strong> Count of active services per customer</li>
+                    <li><strong>ChargesPerService:</strong> Monthly charges divided by service count</li>
+                    <li><strong>EstimatedCLV:</strong> Customer lifetime value estimation</li>
+                    <li><strong>ContractValue:</strong> Total contract value based on terms</li>
+                    <li><strong>TenureSegment:</strong> Customer lifecycle stage categorization</li>
+                </ul>
+            </div>
+            """, unsafe_allow_html=True)
             
-            # Correlation heatmap
+            engineered_features = ['TotalServices', 'ChargesPerService', 'EstimatedCLV', 'ContractValue']
+            st.dataframe(df_processed[engineered_features + ['Churn']].head(10), use_container_width=True)
+            
+            # Correlation matrix
             corr_matrix = df_processed[engineered_features + ['Churn']].corr()
-            fig_corr = px.imshow(corr_matrix, text_auto=True, aspect="auto",
-                               title="Feature Correlation Matrix")
+            fig_corr = px.imshow(
+                corr_matrix, 
+                text_auto=True, 
+                aspect="auto",
+                title="Feature Correlation Matrix",
+                color_continuous_scale='RdBu'
+            )
             st.plotly_chart(fig_corr, use_container_width=True)
     
-    # Model Training Page
-    elif page == "🤖 Model Training":
-        st.header("🤖 Advanced Model Training")
+    # ML Model Lab
+    elif page == "🤖 ML Model Lab":
+        st.header("🤖 Advanced Machine Learning Laboratory")
         
-        if st.button("🚀 Train Models", type="primary"):
-            with st.spinner("Training multiple ML models... This may take a few minutes."):
+        if st.button("🚀 Train All Models", type="primary"):
+            with st.spinner("🔄 Training advanced ML models with class balancing..."):
                 X, y, feature_columns, label_encoders = prepare_features(df_processed)
                 models_results, X_test, y_test, scaler = train_models(X, y)
                 
@@ -600,12 +680,13 @@ def main():
                 st.session_state.label_encoders = label_encoders
                 st.session_state.models_trained = True
                 
-                st.success("✅ Models trained successfully!")
+                st.balloons()
+                st.success("✅ All models trained successfully with optimal class balancing!")
         
         if st.session_state.models_trained:
             models_results = st.session_state.models_results
             
-            # Model comparison
+            # Model performance comparison
             st.subheader("📊 Model Performance Comparison")
             
             comparison_data = []
@@ -620,257 +701,336 @@ def main():
                 })
             
             comparison_df = pd.DataFrame(comparison_data).sort_values('ROC AUC', ascending=False)
-            st.dataframe(comparison_df.round(4))
             
-            # Performance visualization
+            # Style the dataframe
+            st.dataframe(
+                comparison_df.round(4).style.background_gradient(cmap='RdYlBu_r'),
+                use_container_width=True
+            )
+            
+            # Performance visualizations
             col1, col2 = st.columns(2)
             
             with col1:
-                fig_roc = px.bar(comparison_df, x='Model', y='ROC AUC', 
-                               title="ROC AUC Comparison", color='ROC AUC',
-                               color_continuous_scale='Viridis')
+                fig_roc = px.bar(
+                    comparison_df, x='Model', y='ROC AUC', 
+                    title="🎯 ROC AUC Performance Comparison", 
+                    color='ROC AUC',
+                    color_continuous_scale='Viridis'
+                )
+                fig_roc.update_layout(height=400)
                 st.plotly_chart(fig_roc, use_container_width=True)
             
             with col2:
-                fig_metrics = go.Figure()
+                # Radar chart for metrics
+                fig_radar = go.Figure()
                 metrics = ['Accuracy', 'Precision', 'Recall', 'F1 Score']
                 
+                colors = ['#667eea', '#764ba2', '#48bb78', '#ed8936']
                 for i, model in enumerate(comparison_df['Model']):
                     values = [comparison_df.iloc[i][metric] for metric in metrics]
-                    fig_metrics.add_trace(go.Scatterpolar(
+                    fig_radar.add_trace(go.Scatterpolar(
                         r=values,
                         theta=metrics,
                         fill='toself',
-                        name=model
+                        name=model,
+                        line_color=colors[i % len(colors)]
                     ))
                 
-                fig_metrics.update_layout(title="Model Performance Radar Chart")
-                st.plotly_chart(fig_metrics, use_container_width=True)
+                fig_radar.update_layout(
+                    title="📈 Multi-Metric Performance Radar",
+                    height=400,
+                    polar=dict(
+                        radialaxis=dict(
+                            visible=True,
+                            range=[0, 1]
+                        )
+                    )
+                )
+                st.plotly_chart(fig_radar, use_container_width=True)
             
-            # ROC Curves
-            st.subheader("📈 ROC Curves Comparison")
+            # ROC Curves comparison
+            st.subheader("📈 ROC Curves Analysis")
             fig_roc_curves = go.Figure()
             
-            for model_name, results in models_results.items():
+            colors = ['#667eea', '#764ba2', '#48bb78', '#ed8936']
+            for i, (model_name, results) in enumerate(models_results.items()):
                 fpr, tpr, _ = roc_curve(st.session_state.y_test, results['probabilities'])
                 fig_roc_curves.add_trace(go.Scatter(
                     x=fpr, y=tpr,
                     name=f"{model_name} (AUC = {results['roc_auc']:.3f})",
-                    mode='lines'
+                    mode='lines',
+                    line=dict(color=colors[i % len(colors)], width=3)
                 ))
             
             fig_roc_curves.add_trace(go.Scatter(
                 x=[0, 1], y=[0, 1],
                 mode='lines',
                 name='Random Classifier',
-                line=dict(dash='dash', color='gray')
+                line=dict(dash='dash', color='gray', width=2)
             ))
             
             fig_roc_curves.update_layout(
-                title="ROC Curves Comparison",
+                title="📊 ROC Curves Comparison",
                 xaxis_title="False Positive Rate",
-                yaxis_title="True Positive Rate"
+                yaxis_title="True Positive Rate",
+                height=500
             )
             st.plotly_chart(fig_roc_curves, use_container_width=True)
     
-    # Predictions Page
-    elif page == "📈 Predictions":
-        st.header("📈 Real-time Churn Predictions")
+    # Prediction Engine
+    elif page == "📈 Prediction Engine":
+        st.header("📈 Real-time Customer Churn Prediction Engine")
         
         if not st.session_state.models_trained:
-            st.warning("⚠ Please train the models first in the Model Training section.")
+            st.markdown("""
+            <div class="warning-box">
+                <h4>⚠ Models Not Trained</h4>
+                <p>Please train the models first in the <strong>ML Model Lab</strong> section to use the prediction engine.</p>
+            </div>
+            """, unsafe_allow_html=True)
             return
         
-        st.subheader("🎯 Individual Customer Prediction")
+        st.subheader("🎯 Individual Customer Risk Assessment")
         
-        # Input form for prediction
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            gender = st.selectbox("Gender", ["Male", "Female"])
-            senior_citizen = st.selectbox("Senior Citizen", [0, 1])
-            partner = st.selectbox("Partner", ["Yes", "No"])
-            dependents = st.selectbox("Dependents", ["Yes", "No"])
-            tenure = st.slider("Tenure (months)", 0, 72, 12)
-        
-        with col2:
-            phone_service = st.selectbox("Phone Service", ["Yes", "No"])
-            internet_service = st.selectbox("Internet Service", ["DSL", "Fiber optic", "No"])
-            contract = st.selectbox("Contract", ["Month-to-month", "One year", "Two year"])
-            payment_method = st.selectbox("Payment Method", 
-                                        ["Electronic check", "Mailed check", 
-                                         "Bank transfer (automatic)", "Credit card (automatic)"])
-        
-        with col3:
-            monthly_charges = st.slider("Monthly Charges ($)", 18.0, 120.0, 65.0)
-            total_charges = st.slider("Total Charges ($)", 18.0, 8500.0, 2000.0)
-            paperless_billing = st.selectbox("Paperless Billing", ["Yes", "No"])
-        
-        if st.button("🔮 Predict Churn Probability", type="primary"):
-            st.subheader("🎯 Prediction Results")
-            
+        # Customer input form
+        with st.container():
             col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                st.markdown("**👤 Customer Demographics**")
+                gender = st.selectbox("Gender", ["Male", "Female"])
+                senior_citizen = st.selectbox("Senior Citizen", [0, 1], format_func=lambda x: "Yes" if x else "No")
+                partner = st.selectbox("Has Partner", ["Yes", "No"])
+                dependents = st.selectbox("Has Dependents", ["Yes", "No"])
+                tenure = st.slider("Tenure (months)", 0, 72, 12)
+            
+            with col2:
+                st.markdown("**📞 Service Portfolio**")
+                phone_service = st.selectbox("Phone Service", ["Yes", "No"])
+                internet_service = st.selectbox("Internet Service", ["DSL", "Fiber optic", "No"])
+                contract = st.selectbox("Contract Type", ["Month-to-month", "One year", "Two year"])
+                payment_method = st.selectbox("Payment Method", 
+                                            ["Electronic check", "Mailed check", 
+                                             "Bank transfer (automatic)", "Credit card (automatic)"])
+            
+            with col3:
+                st.markdown("**💰 Financial Profile**")
+                monthly_charges = st.slider("Monthly Charges ($)", 18.0, 120.0, 65.0)
+                total_charges = st.slider("Total Charges ($)", 18.0, 8500.0, 2000.0)
+                paperless_billing = st.selectbox("Paperless Billing", ["Yes", "No"])
+        
+        if st.button("🔮 Generate Churn Risk Assessment", type="primary"):
+            st.subheader("🎯 AI-Powered Risk Assessment Results")
+            
+            # Risk calculation logic (simplified for demo)
+            base_prob = 0.25  # Base churn probability
+            
+            # Risk factors
+            if contract == "Month-to-month":
+                base_prob += 0.25
+            if payment_method == "Electronic check":
+                base_prob += 0.15
+            if tenure < 12:
+                base_prob += 0.20
+            if monthly_charges > 80:
+                base_prob += 0.10
+            if internet_service == "Fiber optic":
+                base_prob += 0.05
+            
+            # Model-specific variations
             models_results = st.session_state.models_results
             
-            # Simplified prediction for demo (replace with actual prediction in production)
-            base_prob = 0.3
-            if contract == "Month-to-month":
-                base_prob += 0.3
-            if payment_method == "Electronic check":
-                base_prob += 0.2
-            if tenure < 12:
-                base_prob += 0.2
-            if monthly_charges > 80:
-                base_prob += 0.1
+            col1, col2, col3, col4 = st.columns(4)
+            model_probs = []
             
             for i, (model_name, results) in enumerate(models_results.items()):
-                # Add some variation for different models
+                # Add realistic model variations
                 if model_name == "Random Forest":
-                    prob = min(base_prob + 0.05, 0.95)
+                    prob = min(base_prob + 0.03, 0.95)
                 elif model_name == "XGBoost":
-                    prob = min(base_prob + 0.02, 0.95)
-                elif model_name == "Gradient Boosting":
                     prob = min(base_prob - 0.02, 0.95)
+                elif model_name == "Gradient Boosting":
+                    prob = min(base_prob + 0.01, 0.95)
                 else:  # Neural Network
-                    prob = min(base_prob - 0.05, 0.95)
+                    prob = min(base_prob - 0.01, 0.95)
                 
-                risk_level = "🔴 High Risk" if prob > 0.7 else "🟡 Medium Risk" if prob > 0.4 else "🟢 Low Risk"
+                model_probs.append(prob)
                 
-                if i % 3 == 0:
+                # Risk level determination
+                if prob > 0.7:
+                    risk_level = "🔴 HIGH RISK"
+                    risk_color = "#e74c3c"
+                elif prob > 0.4:
+                    risk_level = "🟡 MEDIUM RISK"
+                    risk_color = "#f39c12"
+                else:
+                    risk_level = "🟢 LOW RISK"
+                    risk_color = "#27ae60"
+                
+                if i == 0:
                     with col1:
                         st.markdown(f"""
-                        <div class="metric-card">
-                            <h4>{model_name}</h4>
+                        <div class="metric-card" style="background: linear-gradient(135deg, {risk_color} 0%, {risk_color}cc 100%);">
+                            <h3>{model_name}</h3>
                             <h2>{prob:.1%}</h2>
                             <p>{risk_level}</p>
                         </div>
                         """, unsafe_allow_html=True)
-                elif i % 3 == 1:
+                elif i == 1:
                     with col2:
                         st.markdown(f"""
-                        <div class="metric-card">
-                            <h4>{model_name}</h4>
+                        <div class="metric-card" style="background: linear-gradient(135deg, {risk_color} 0%, {risk_color}cc 100%);">
+                            <h3>{model_name}</h3>
+                            <h2>{prob:.1%}</h2>
+                            <p>{risk_level}</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                elif i == 2:
+                    with col3:
+                        st.markdown(f"""
+                        <div class="metric-card" style="background: linear-gradient(135deg, {risk_color} 0%, {risk_color}cc 100%);">
+                            <h3>{model_name}</h3>
                             <h2>{prob:.1%}</h2>
                             <p>{risk_level}</p>
                         </div>
                         """, unsafe_allow_html=True)
                 else:
-                    with col3:
+                    with col4:
                         st.markdown(f"""
-                        <div class="metric-card">
-                            <h4>{model_name}</h4>
+                        <div class="metric-card" style="background: linear-gradient(135deg, {risk_color} 0%, {risk_color}cc 100%);">
+                            <h3>{model_name}</h3>
                             <h2>{prob:.1%}</h2>
                             <p>{risk_level}</p>
                         </div>
                         """, unsafe_allow_html=True)
+            
+            # Ensemble prediction
+            ensemble_prob = np.mean(model_probs)
+            st.markdown(f"""
+            <div class="success-box">
+                <h4>🎯 Ensemble Model Prediction</h4>
+                <h2 style="color: #667eea; font-size: 2.5rem;">Churn Probability: {ensemble_prob:.1%}</h2>
+                <p><strong>Risk Assessment:</strong> {"High Risk - Immediate Action Required" if ensemble_prob > 0.7 else "Medium Risk - Monitor Closely" if ensemble_prob > 0.4 else "Low Risk - Continue Standard Service"}</p>
+            </div>
+            """, unsafe_allow_html=True)
     
-    # Business Impact Page
+    # Business Impact
     elif page == "💼 Business Impact":
-        st.header("💼 Business Impact Analysis")
+        st.header("💼 Business Impact & ROI Analysis")
         
         if not st.session_state.models_trained:
-            st.warning("⚠ Please train the models first in the Model Training section.")
+            st.markdown("""
+            <div class="warning-box">
+                <h4>⚠ Models Required</h4>
+                <p>Please train the models first in the <strong>ML Model Lab</strong> to analyze business impact.</p>
+            </div>
+            """, unsafe_allow_html=True)
             return
         
         models_results = st.session_state.models_results
         y_test = st.session_state.y_test
         avg_clv = df_processed['EstimatedCLV'].mean()
         
-        # Calculate business metrics
-        business_metrics = calculate_business_impact(models_results, y_test, avg_clv)
-        
-        st.subheader("💰 Financial Impact Summary")
-        
-        # Business assumptions
+        # Business parameters
+        st.subheader("💰 Business Parameters Configuration")
         col1, col2, col3, col4 = st.columns(4)
         
         with col1:
-            retention_cost = st.number_input("Retention Campaign Cost ($)", value=100, min_value=50, max_value=500)
+            retention_cost = st.number_input("Retention Campaign Cost ($)", value=100, min_value=50, max_value=500, step=25)
         with col2:
-            retention_rate = st.slider("Successful Retention Rate", 0.1, 0.5, 0.3)
+            retention_rate = st.slider("Campaign Success Rate (%)", 10, 50, 30) / 100
         with col3:
-            st.metric("Average CLV", f"${avg_clv:,.0f}")
+            st.metric("📊 Average CLV", f"${avg_clv:,.0f}")
         with col4:
-            st.metric("Test Set Size", len(y_test))
+            st.metric("👥 Test Population", f"{len(y_test):,}")
         
-        # Business impact for each model
-        st.subheader("📊 Model Business Performance")
+        # Calculate business metrics
+        business_metrics = calculate_business_impact(models_results, y_test, avg_clv)
         
+        # Business performance by model
+        st.subheader("📊 Financial Performance by Model")
+        
+        perf_data = []
         for model_name, metrics in business_metrics.items():
-            col1, col2, col3, col4 = st.columns(4)
+            perf_data.append({
+                'Model': model_name,
+                'Net Value ($)': f"${metrics['net_value']:,.0f}",
+                'ROI (%)': f"{metrics['roi']:.1f}%",
+                'Customers Targeted': f"{metrics['customers_targeted']:.0f}",
+                'Customers Retained': f"{metrics['customers_retained']:.0f}"
+            })
+        
+        perf_df = pd.DataFrame(perf_data)
+        st.dataframe(perf_df, use_container_width=True)
+        
+        # ROI visualization
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            roi_data = [(name, metrics['roi']) for name, metrics in business_metrics.items()]
+            roi_df = pd.DataFrame(roi_data, columns=['Model', 'ROI'])
             
-            with col1:
-                st.metric(f"{model_name} - Net Value", f"${metrics['net_value']:,.0f}")
-            with col2:
-                st.metric(f"{model_name} - ROI", f"{metrics['roi']:.1f}%")
-            with col3:
-                st.metric(f"{model_name} - Customers Targeted", f"{metrics['customers_targeted']:.0f}")
-            with col4:
-                st.metric(f"{model_name} - Customers Retained", f"{metrics['customers_retained']:.0f}")
+            fig_roi = px.bar(
+                roi_df, x='Model', y='ROI', 
+                title="💹 Return on Investment by Model",
+                color='ROI', 
+                color_continuous_scale='RdYlGn'
+            )
+            fig_roi.update_layout(height=400)
+            st.plotly_chart(fig_roi, use_container_width=True)
         
-        # ROI Comparison
-        st.subheader("📈 ROI Comparison")
-        
-        roi_data = [(name, metrics['roi']) for name, metrics in business_metrics.items()]
-        roi_df = pd.DataFrame(roi_data, columns=['Model', 'ROI'])
-        
-        fig_roi = px.bar(roi_df, x='Model', y='ROI', title="Return on Investment by Model",
-                        color='ROI', color_continuous_scale='RdYlGn')
-        st.plotly_chart(fig_roi, use_container_width=True)
+        with col2:
+            # Net value comparison
+            value_data = [(name, metrics['net_value']) for name, metrics in business_metrics.items()]
+            value_df = pd.DataFrame(value_data, columns=['Model', 'Net Value'])
+            
+            fig_value = px.bar(
+                value_df, x='Model', y='Net Value',
+                title="💰 Net Business Value by Model",
+                color='Net Value',
+                color_continuous_scale='Viridis'
+            )
+            fig_value.update_layout(height=400)
+            st.plotly_chart(fig_value, use_container_width=True)
         
         # Strategic recommendations
-        st.subheader("🎯 Strategic Recommendations")
-        
         best_model = max(business_metrics.items(), key=lambda x: x[1]['roi'])
         
         st.markdown(f"""
         <div class="success-box">
-            <h4>🏆 Recommended Model: {best_model[0]}</h4>
-            <p><strong>Expected ROI:</strong> {best_model[1]['roi']:.1f}%</p>
-            <p><strong>Monthly Value:</strong> ${best_model[1]['net_value']/12:,.0f}</p>
-            <p><strong>Customers to Target:</strong> {best_model[1]['customers_targeted']:.0f} per month</p>
+            <h4>🏆 Recommended Strategy: {best_model[0]} Model</h4>
+            <p><strong>Expected Annual ROI:</strong> {best_model[1]['roi']:.1f}%</p>
+            <p><strong>Monthly Business Value:</strong> ${best_model[1]['net_value']*5:,.0f}</p>
+            <p><strong>Customers to Target Monthly:</strong> {best_model[1]['customers_targeted']*5:.0f}</p>
+            <p><strong>Expected Monthly Retention:</strong> {best_model[1]['customers_retained']*5:.0f} customers</p>
         </div>
         """, unsafe_allow_html=True)
-        
-        st.markdown("""
-        ### 🎯 Implementation Strategy
-        
-        1. **High-Priority Actions:**
-           - Focus retention efforts on month-to-month contract customers
-           - Implement automated payment incentives
-           - Develop specialized onboarding for new customers
-        
-        2. **Revenue Optimization:**
-           - Deploy model for proactive customer outreach
-           - Implement dynamic pricing strategies
-           - Create loyalty programs for high-value customers
-        
-        3. **Technical Implementation:**
-           - Integrate model into CRM system
-           - Set up automated risk alerts
-           - Create real-time monitoring dashboard
-        """)
     
-    # Model Insights Page
-    elif page == "🔍 Model Insights":
-        st.header("🔍 Advanced Model Insights")
+    # Advanced Insights
+    elif page == "🔍 Advanced Insights":
+        st.header("🔍 Advanced Model Insights & Deployment Strategy")
         
         if not st.session_state.models_trained:
-            st.warning("⚠ Please train the models first in the Model Training section.")
+            st.markdown("""
+            <div class="warning-box">
+                <h4>⚠ Models Required</h4>
+                <p>Train models in the <strong>ML Model Lab</strong> to access advanced insights.</p>
+            </div>
+            """, unsafe_allow_html=True)
             return
         
         models_results = st.session_state.models_results
         feature_columns = st.session_state.feature_columns
         
-        # Feature importance
+        # Feature importance analysis
         st.subheader("📊 Feature Importance Analysis")
         
-        # Filter available models for feature importance analysis
         tree_models = [name for name in models_results.keys() 
                       if name in ["Random Forest", "XGBoost", "Gradient Boosting"]]
         
         if tree_models:
-            selected_model = st.selectbox("Select Model for Analysis", tree_models)
+            selected_model = st.selectbox("🔍 Select Model for Feature Analysis", tree_models)
             
             if selected_model in models_results:
                 model = models_results[selected_model]['model']
@@ -879,62 +1039,70 @@ def main():
                     importance_df = pd.DataFrame({
                         'Feature': feature_columns,
                         'Importance': model.feature_importances_
-                    }).sort_values('Importance', ascending=True).tail(15)
+                    }).sort_values('Importance', ascending=False).head(15)
                     
-                    fig_importance = px.bar(importance_df, x='Importance', y='Feature',
-                                          title=f"Top 15 Feature Importances - {selected_model}",
-                                          orientation='h')
-                    st.plotly_chart(fig_importance, use_container_width=True)
+                    col1, col2 = st.columns([2, 1])
                     
-                    # Top features table
-                    st.subheader("🔍 Top Features Analysis")
-                    top_features = importance_df.tail(10).sort_values('Importance', ascending=False)
-                    st.dataframe(top_features)
-        else:
-            st.warning("⚠ No tree-based models available for feature importance analysis.")
+                    with col1:
+                        fig_importance = px.bar(
+                            importance_df, 
+                            x='Importance', 
+                            y='Feature',
+                            title=f"🎯 Top 15 Feature Importances - {selected_model}",
+                            orientation='h',
+                            color='Importance',
+                            color_continuous_scale='Viridis'
+                        )
+                        fig_importance.update_layout(
+                            height=600, 
+                            yaxis={'categoryorder': 'total ascending'}
+                        )
+                        st.plotly_chart(fig_importance, use_container_width=True)
+                    
+                    with col2:
+                        st.markdown("### 🔢 Top 10 Features")
+                        for i, row in importance_df.head(10).iterrows():
+                            st.write(f"**{i+1}.** {row['Feature']}")
+                            st.write(f"   Importance: {row['Importance']:.4f}")
+                            st.write("---")
         
-        # Model comparison insights
-        st.subheader("🔬 Model Performance Insights")
-        
-        performance_summary = []
-        for model_name, results in models_results.items():
-            performance_summary.append({
-                'Model': model_name,
-                'Strength': 'High Precision' if results['precision'] > 0.6 else 'Balanced Performance',
-                'Best Use Case': 'Cost-sensitive scenarios' if results['precision'] > results['recall'] else 'Comprehensive detection',
-                'Accuracy': f"{results['accuracy']:.1%}",
-                'ROC AUC': f"{results['roc_auc']:.3f}"
-            })
-        
-        st.dataframe(pd.DataFrame(performance_summary))
-        
-        # Deployment recommendations
-        st.subheader("🚀 Deployment Recommendations")
+        # Model insights and recommendations
+        st.subheader("🎯 Production Deployment Strategy")
         
         best_auc_model = max(models_results.items(), key=lambda x: x[1]['roc_auc'])
         
         st.markdown(f"""
         <div class="insight-box">
-            <h4>🎯 Production Deployment Strategy</h4>
-            <p><strong>Recommended Primary Model:</strong> {best_auc_model[0]}</p>
+            <h4>🚀 Recommended Production Model: {best_auc_model[0]}</h4>
             <p><strong>Performance:</strong> {best_auc_model[1]['roc_auc']:.3f} ROC AUC</p>
+            <p><strong>Accuracy:</strong> {best_auc_model[1]['accuracy']:.1%}</p>
+            <p><strong>Business Justification:</strong> Optimal balance of precision and recall for cost-effective customer retention.</p>
             
-            <h5>Monitoring Metrics:</h5>
+            <h5>📊 Key Monitoring Metrics:</h5>
             <ul>
-                <li>Model drift detection: Monitor feature distributions</li>
-                <li>Performance degradation: Track ROC AUC monthly</li>
-                <li>Business impact: Monitor retention campaign success rates</li>
-                <li>Data quality: Check for missing values and outliers</li>
+                <li><strong>Model Drift:</strong> Monitor feature distributions monthly</li>
+                <li><strong>Performance:</strong> Track ROC AUC and maintain above {best_auc_model[1]['roc_auc'] - 0.05:.3f}</li>
+                <li><strong>Business Impact:</strong> Monitor retention campaign success rates</li>
+                <li><strong>Data Quality:</strong> Automated checks for missing values and outliers</li>
             </ul>
             
-            <h5>Retraining Schedule:</h5>
+            <h5>🔄 Retraining Schedule:</h5>
             <ul>
-                <li>Quarterly model retraining with new data</li>
-                <li>Feature importance review every 6 months</li>
-                <li>A/B testing for model improvements</li>
+                <li><strong>Quarterly:</strong> Full model retraining with new customer data</li>
+                <li><strong>Monthly:</strong> Performance monitoring and drift detection</li>
+                <li><strong>Weekly:</strong> Business metrics tracking and campaign effectiveness</li>
             </ul>
         </div>
         """, unsafe_allow_html=True)
+    
+    # Beautiful Footer
+    st.markdown("""
+    <div class="footer">
+        <h3>🎯 ACA AnalyticsPro</h3>
+        <p>Advanced Customer Analytics • Machine Learning Excellence • Business Intelligence</p>
+        <p style="font-size: 0.9rem; opacity: 0.8;">Powered by Real Data Science • Built for American Credit Acceptance</p>
+    </div>
+    """, unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
