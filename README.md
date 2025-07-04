@@ -378,11 +378,6 @@ def advanced_feature_engineering(customer_data):
 
 ---
 
-## 📜 License
-This project is released under the **MIT License**. See [LICENSE](LICENSE) for details.
-
----
-
 **Author**: Peter Chika Ozo-ogueji  
 **Institution**: American University - Data Science Program  
 **Contact**: po3783a@american.edu
