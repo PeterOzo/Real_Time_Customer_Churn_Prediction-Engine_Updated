@@ -241,8 +241,11 @@ $$\text{Optimal Balance} = \arg\max_{\theta} \left[ \alpha \cdot \text{Precision
 **Algorithm-Specific Strategies**:
 
 • **Random Forest**: `class_weight='balanced'` for automatic sample weight adjustment
+
 • **XGBoost**: `scale_pos_weight = n_negative / n_positive` for gradient optimization
+
 • **Gradient Boosting**: `sample_weight` computed via `compute_sample_weight('balanced')`
+
 • **Neural Network**: Weighted loss function with balanced sample weights
 
 **Modes**: standard, recall-optimized (maximize churn detection), precision-optimized (minimize false alarms)
