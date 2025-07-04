@@ -98,7 +98,7 @@ Our churn prediction engine addresses these challenges through:
 - **Risk Management Indicators**: Model stability, prediction confidence, retention effectiveness
 
 ## 🎛️ Key Predictors
-
+ 
 ### **Customer Demographics and Financial Profile**
 **Relationship and Lifecycle Indicators**:
 - `tenure`: Customer relationship duration (0-72 months, log-normal distribution)
