@@ -13,11 +13,29 @@ Click the Live Demo tab above for a visual tour of the dashboard!
 
 For full details, see the [Executive Report (PDF)](https://github.com/PeterOzo/Real_Time_Customer_Churn_Prediction-Engine_Updated/blob/main/README_Paper_Customer_Churn_Prediction_paper.pdf)
 
-![Dashboard Overview](https://github.com/user-attachments/assets/churn-dashboard-overview.png)
+![image](https://github.com/user-attachments/assets/3611d0b3-3aa0-4321-b03b-4de0bd8b3eff)
 
-![Model Performance](https://github.com/user-attachments/assets/churn-model-performance.png)
+![image](https://github.com/user-attachments/assets/a38959f3-3d3a-46e3-9d3b-2515ea294578)
 
-![Business Impact](https://github.com/user-attachments/assets/churn-business-impact.png)
+![image](https://github.com/user-attachments/assets/381ff0cc-a376-4517-a249-181557c714fd)
+
+![image](https://github.com/user-attachments/assets/3a3f3f6c-2819-4528-b702-0ba0db04b730)
+
+![image](https://github.com/user-attachments/assets/4496f424-777a-4243-8bbb-0fbc907060a1)
+
+![image](https://github.com/user-attachments/assets/9ffa92a1-14bb-4088-834a-4022c0651bd2)
+
+![image](https://github.com/user-attachments/assets/0e9c711c-f868-48ae-8e09-0f7fe5a349e9)
+
+![image](https://github.com/user-attachments/assets/81a5c818-bb23-48b5-9ec9-00a9a2eecbe4)
+
+![image](https://github.com/user-attachments/assets/003f1141-c4ad-442b-b0ac-4e3edaa3c9b0)
+
+![image](https://github.com/user-attachments/assets/a138a5c2-b496-4bb6-9c46-f2c1fd964fbb)
+
+![image](https://github.com/user-attachments/assets/d0611a25-e974-4a15-b35e-2b8ade28db53)
+
+![image](https://github.com/user-attachments/assets/195a710b-1896-44e0-956e-14c9ae062c57)
 
 Revolutionizing customer retention strategies through cutting-edge machine learning ensemble methods and intelligent class balancing. Our comprehensive system integrates Random Forest, XGBoost, Gradient Boosting, and Neural Network models with algorithm-specific class balancing, advanced feature engineering, and production-ready deployment to maximize customer lifetime value while minimizing churn risk. This groundbreaking approach transforms traditional reactive retention into proactive, data-driven customer relationship management that adapts to behavioral patterns in real-time.
 
