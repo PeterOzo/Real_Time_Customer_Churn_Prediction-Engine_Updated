@@ -11,7 +11,7 @@
 
 Click the Live Demo tab above for a visual tour of the dashboard!
 
-For full details, see the [Executive Report (PDF)](https://github.com/PeterOzo/Advanced-Customer-Churn-Prediction/blob/main/Churn_Prediction_Executive_Report.pdf)
+For full details, see the [Executive Report (PDF)](https://github.com/PeterOzo/Real_Time_Customer_Churn_Prediction-Engine_Updated/blob/main/README_Paper_Customer_Churn_Prediction_paper.pdf)
 
 ![Dashboard Overview](https://github.com/user-attachments/assets/churn-dashboard-overview.png)
 
@@ -369,4 +369,4 @@ This project is released under the **MIT License**. See [LICENSE](LICENSE) for d
 **Institution**: American University - Data Science Program  
 **Contact**: po3783a@american.edu
 
-*For full details, see the [Executive Report (PDF)](https://github.com/PeterOzo/Advanced-Customer-Churn-Prediction/blob/main/Churn_Prediction_Executive_Report.pdf).*
+*For full details, see the [Executive Report (PDF)](https://github.com/PeterOzo/Real_Time_Customer_Churn_Prediction-Engine_Updated/blob/main/README_Paper_Customer_Churn_Prediction_paper.pdf).*
