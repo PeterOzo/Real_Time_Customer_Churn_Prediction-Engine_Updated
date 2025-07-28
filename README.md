@@ -1,4 +1,4 @@
-# Advanced Customer Churn Prediction: Machine Learning Ensemble Framework with Business Intelligence Integration 
+# Advanced Customer Churn Prediction: Machine Learning Ensemble Framework with Business Intelligence Integration  
 
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-Streamlit%20Cloud-brightgreen)](https://customer-lifetime-value-analytics-blaw29y6yqxtkcslriywxb.streamlit.app/)
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/downloads/)
